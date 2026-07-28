@@ -1,0 +1,12 @@
+node_modules
+vendor
+.venv
+local_data
+outputs
+work
+dist
+.next
+.vinext
+.git
+*.pyc
+__pycache__

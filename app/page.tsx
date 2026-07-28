@@ -2,7 +2,8 @@
 
 import { FormEvent, useEffect, useMemo, useState } from "react";
 
-const API = "http://127.0.0.1:8765/api";
+const API = process.env.NEXT_PUBLIC_API_URL || "/api";
+const API_ORIGIN = API.endsWith("/api") ? API.slice(0, -4) : API;
 
 type Job = {
   id: string;
@@ -171,7 +172,7 @@ export default function Home() {
               <>
                 <div className="progress"><i style={{ width: `${job.progress}%` }} /></div>
                 <p>{job.error || `${job.progress}% · ${job.stage}`}</p>
-                {job.clips?.length ? <div className="clipEditor">{job.clips.map((clip, index) => <div className="clipRow" key={clip.name}><video controls preload="metadata" src={`http://127.0.0.1:8765${clip.download_url}`} /><div className="clipMeta"><b>Клип {index + 1}</b><div className="trimInputs"><label>от<input type="number" min="0" step="1" value={editValue(index, "start", clip.start)} onChange={(e) => setEdits((all) => ({ ...all, [index]: { start: e.target.value, end: editValue(index, "end", clip.end) } }))} /></label><label>до<input type="number" min="1" step="1" value={editValue(index, "end", clip.end)} onChange={(e) => setEdits((all) => ({ ...all, [index]: { start: editValue(index, "start", clip.start), end: e.target.value } }))} /></label></div><div className="clipActions"><button type="button" onClick={() => saveEdit(index, clip)} disabled={savingClip === index}>{savingClip === index ? "Сохраняю…" : "Применить"}</button><a href={`http://127.0.0.1:8765${clip.download_url}`}>Скачать ↓</a></div></div></div>)}</div> : null}
+                {job.clips?.length ? <div className="clipEditor">{job.clips.map((clip, index) => <div className="clipRow" key={clip.name}><video controls preload="metadata" src={`${API_ORIGIN}${clip.download_url}`} /><div className="clipMeta"><b>Клип {index + 1}</b><div className="trimInputs"><label>от<input type="number" min="0" step="1" value={editValue(index, "start", clip.start)} onChange={(e) => setEdits((all) => ({ ...all, [index]: { start: e.target.value, end: editValue(index, "end", clip.end) } }))} /></label><label>до<input type="number" min="1" step="1" value={editValue(index, "end", clip.end)} onChange={(e) => setEdits((all) => ({ ...all, [index]: { start: editValue(index, "start", clip.start), end: e.target.value } }))} /></label></div><div className="clipActions"><button type="button" onClick={() => saveEdit(index, clip)} disabled={savingClip === index}>{savingClip === index ? "Сохраняю…" : "Применить"}</button><a href={`${API_ORIGIN}${clip.download_url}`}>Скачать ↓</a></div></div></div>)}</div> : null}
               </>
             ) : <p>После обработки здесь появятся готовые вертикальные видео.</p>}
           </div>

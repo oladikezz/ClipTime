@@ -6,7 +6,7 @@ test("ClipTime interface contains the complete local workflow", async () => {
   const page = await readFile(new URL("../app/page.tsx", import.meta.url), "utf8");
   const css = await readFile(new URL("../app/globals.css", import.meta.url), "utf8");
   assert.match(page, /СОЗДАТЬ КЛИПЫ/);
-  assert.match(page, /http:\/\/127\.0\.0\.1:8765\/api/);
+  assert.match(page, /process\.env\.NEXT_PUBLIC_API_URL/);
   assert.match(page, /clip_count/);
   assert.match(page, /download_url/);
   assert.match(css, /--accent: #4f46e5/);

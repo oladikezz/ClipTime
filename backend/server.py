@@ -401,8 +401,10 @@ class Handler(BaseHTTPRequestHandler):
 
 
 if __name__ == "__main__":
-    server = ThreadingHTTPServer(("127.0.0.1", 8765), Handler)
-    print("ClipTime engine: http://127.0.0.1:8765")
+    host = os.environ.get("HOST", "0.0.0.0")
+    port = int(os.environ.get("BACKEND_PORT", "8765"))
+    server = ThreadingHTTPServer((host, port), Handler)
+    print(f"ClipTime engine: http://{host}:{port}")
     try:
         server.serve_forever()
     except KeyboardInterrupt:
