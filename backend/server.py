@@ -1,6 +1,8 @@
 from __future__ import annotations
 
-import cgi
+import email
+import email.policy
+import io
 import json
 import os
 import re
@@ -366,25 +368,46 @@ class Handler(BaseHTTPRequestHandler):
             self.json_response(404, {"error": "Не найдено"})
             return
         try:
-            form = cgi.FieldStorage(fp=self.rfile, headers=self.headers, environ={"REQUEST_METHOD": "POST",
-                "CONTENT_TYPE": self.headers.get("Content-Type", ""), "CONTENT_LENGTH": self.headers.get("Content-Length", "0")})
-            job_id, mode = uuid.uuid4().hex[:12], form.getfirst("source_mode", "url")
-            config: dict[str, Any] = {"source_mode": mode, "url": form.getfirst("url", "").strip(),
-                "clip_count": max(1, min(20, int(form.getfirst("clip_count", "6")))),
-                "clip_length": max(15, min(90, int(form.getfirst("clip_length", "35")))),
-                "language": form.getfirst("language", "auto"),
-                "cookie_browser": form.getfirst("cookie_browser", "none"),
-                "caption_style": form.getfirst("caption_style", "viral"),
-                "remove_silence": form.getfirst("remove_silence", "false").lower() == "true"}
+            content_type = self.headers.get("Content-Type", "")
+            content_length = int(self.headers.get("Content-Length", 0))
+            body_bytes = self.rfile.read(content_length)
+
+            form_fields: dict[str, str] = {}
+            upload_filename: str | None = None
+            upload_bytes: bytes | None = None
+
+            if "multipart/form-data" in content_type:
+                msg = email.message_from_bytes(f"Content-Type: {content_type}\r\n\r\n".encode("utf-8") + body_bytes, policy=email.policy.default)
+                for part in msg.iter_parts():
+                    pname = part.get_param("name", header="content-disposition")
+                    pfile = part.get_filename()
+                    pbytes = part.get_payload(decode=True)
+                    if pfile is not None or pname == "file":
+                        upload_filename = pfile or "video.mp4"
+                        upload_bytes = pbytes
+                    elif pname and pbytes is not None:
+                        form_fields[pname] = pbytes.decode("utf-8", errors="replace")
+            else:
+                from urllib.parse import parse_qs
+                parsed_qs = parse_qs(body_bytes.decode("utf-8", errors="replace"))
+                form_fields = {k: v[0] for k, v in parsed_qs.items() if v}
+
+            job_id, mode = uuid.uuid4().hex[:12], form_fields.get("source_mode", "url")
+            config: dict[str, Any] = {"source_mode": mode, "url": form_fields.get("url", "").strip(),
+                "clip_count": max(1, min(20, int(form_fields.get("clip_count", "6")))),
+                "clip_length": max(15, min(90, int(form_fields.get("clip_length", "35")))),
+                "language": form_fields.get("language", "auto"),
+                "cookie_browser": form_fields.get("cookie_browser", "none"),
+                "caption_style": form_fields.get("caption_style", "viral"),
+                "remove_silence": form_fields.get("remove_silence", "false").lower() == "true"}
             if mode == "file":
-                upload = form["file"] if "file" in form else None
-                if upload is None or not getattr(upload, "file", None):
+                if not upload_bytes:
                     raise ValueError("Выбери видеофайл")
                 folder = INPUTS / job_id
                 folder.mkdir(parents=True, exist_ok=True)
-                target = folder / safe_name(upload.filename or "video.mp4")
+                target = folder / safe_name(upload_filename or "video.mp4")
                 with target.open("wb") as output:
-                    shutil.copyfileobj(upload.file, output)
+                    output.write(upload_bytes)
                 config["file_path"] = str(target)
             elif not config["url"].startswith(("http://", "https://")):
                 raise ValueError("Вставь корректную ссылку на видео")
